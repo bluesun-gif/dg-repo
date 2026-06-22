@@ -28,7 +28,7 @@ interface FieldOptions {
 const DEFAULT_OPTS: FieldOptions = {
   departments: ['Sales', 'Technical', 'Finance', 'Legal', 'HR', 'Operations', 'Other'],
   categories: ['Technical Proposal', 'Financial Proposal', 'Contract', 'RFP', 'Architecture', 'Report', 'Invoice', 'Other'],
-  products: [],
+  products: ['Web Portal', 'Mobile App', 'Cloud Hosting', 'Security Audit', 'OneID SSO', 'Custom Development'],
   correspondents: [],
 };
 
@@ -107,7 +107,15 @@ function Combobox({ value, onChange, options, placeholder = 'Type or select...',
           value={inputVal}
           onChange={e => { setInputVal(e.target.value); onChange(e.target.value); setOpen(true); }}
           onFocus={() => setOpen(true)}
-          onBlur={() => setTimeout(() => setOpen(false), 150)}
+          onBlur={() => {
+            setTimeout(() => {
+              setOpen(false);
+              const trimmed = inputVal.trim();
+              if (trimmed) {
+                commit(trimmed);
+              }
+            }, 180);
+          }}
           onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); commit(inputVal); } if (e.key === 'Escape') setOpen(false); }}
           placeholder={placeholder}
           className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
@@ -256,8 +264,12 @@ export default function Upload() {
       updateStep(1, 'done', preview ? `"${preview}…"` : 'Text extracted');
       // Auto-populate tags from common words in the text (simple keyword extraction)
       autoExtractTags(text);
+      // Auto-fill metadata based on text and file name
+      autoFillMetadata(text, f.name);
     } catch (err: any) {
       updateStep(1, 'error', `OCR skipped: ${err.message?.slice(0, 50) || 'Could not extract text'}`);
+      // Try to fill metadata even if OCR failed (using filename only)
+      autoFillMetadata('', f.name);
     }
   };
 
@@ -272,6 +284,59 @@ export default function Upload() {
     const found = keywords.filter(k => lowerText.includes(k));
     if (found.length > 0) {
       setTags(prev => [...new Set([...prev, ...found])]);
+    }
+  };
+
+  // Heuristic-based metadata auto-completion to minimize uploader effort
+  const autoFillMetadata = (text: string, filename: string) => {
+    const combined = (filename + ' ' + text).toLowerCase();
+
+    // 1. Guess Department
+    let guessedDept = '';
+    if (combined.includes('sale') || combined.includes('marketing') || combined.includes('pitch') || combined.includes('proposal')) guessedDept = 'Sales';
+    else if (combined.includes('tech') || combined.includes('code') || combined.includes('software') || combined.includes('architect') || combined.includes('develop')) guessedDept = 'Technical';
+    else if (combined.includes('billing') || combined.includes('invoice') || combined.includes('finance') || combined.includes('payment') || combined.includes('tax') || combined.includes('vat')) guessedDept = 'Finance';
+    else if (combined.includes('legal') || combined.includes('contract') || combined.includes('agreement') || combined.includes('nda')) guessedDept = 'Legal';
+    else if (combined.includes('hr') || combined.includes('recruitment') || combined.includes('employee') || combined.includes('salary')) guessedDept = 'HR';
+    else if (combined.includes('operation') || combined.includes('logistics') || combined.includes('support')) guessedDept = 'Operations';
+
+    if (guessedDept && !dept) setDept(guessedDept);
+
+    // 2. Guess Document Type / Category
+    let guessedCat = '';
+    if (combined.includes('technical proposal') || (combined.includes('technical') && combined.includes('proposal'))) guessedCat = 'Technical Proposal';
+    else if (combined.includes('financial proposal') || (combined.includes('financial') && combined.includes('proposal')) || combined.includes('quotation') || combined.includes('pricing')) guessedCat = 'Financial Proposal';
+    else if (combined.includes('contract') || combined.includes('agreement') || combined.includes('nda') || combined.includes('signing')) guessedCat = 'Contract';
+    else if (combined.includes('rfp') || combined.includes('request for proposal')) guessedCat = 'RFP';
+    else if (combined.includes('architecture') || combined.includes('design') || combined.includes('blueprint')) guessedCat = 'Architecture';
+    else if (combined.includes('report') || combined.includes('audit') || combined.includes('analysis')) guessedCat = 'Report';
+    else if (combined.includes('invoice') || combined.includes('bill') || combined.includes('receipt')) guessedCat = 'Invoice';
+
+    if (guessedCat && !category) setCategory(guessedCat);
+
+    // 3. Guess Client / Correspondent Name
+    const nameWithoutExt = filename.replace(/\.[^/.]+$/, "");
+    const parts = nameWithoutExt.split(/[\s_.-]+/).filter(p => {
+      const lp = p.toLowerCase();
+      return lp.length > 2 && 
+        !['invoice', 'proposal', 'contract', 'report', 'draft', 'final', 'version', 'dept', 'client', 'document', 'file', 'upload', 'pdf', 'docx', 'xlsx', 'txt', 'png', 'jpg', 'jpeg'].includes(lp);
+    });
+    if (parts.length > 0 && !client) {
+      const guessed = parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
+      setClient(guessed);
+    }
+
+    // 4. Guess Products
+    const guessedProds: string[] = [];
+    if (combined.includes('portal') || combined.includes('website') || combined.includes('web app')) guessedProds.push('Web Portal');
+    if (combined.includes('mobile') || combined.includes('ios') || combined.includes('android') || combined.includes('app ')) guessedProds.push('Mobile App');
+    if (combined.includes('cloud') || combined.includes('hosting') || combined.includes('aws') || combined.includes('azure')) guessedProds.push('Cloud Hosting');
+    if (combined.includes('security') || combined.includes('audit') || combined.includes('penetration')) guessedProds.push('Security Audit');
+    if (combined.includes('sso') || combined.includes('single sign') || combined.includes('oneid') || combined.includes('identity')) guessedProds.push('OneID SSO');
+    if (combined.includes('custom') || combined.includes('development') || combined.includes('software')) guessedProds.push('Custom Development');
+
+    if (guessedProds.length > 0) {
+      setProducts(guessedProds);
     }
   };
 

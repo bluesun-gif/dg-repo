@@ -6,7 +6,7 @@ import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/firebase';
 import {
   Search, FileText, Tag, Users, Folder, X, Clock,
-  Loader2, ChevronRight, HardDrive, SlidersHorizontal, Zap,
+  Loader2, ChevronRight, HardDrive, SlidersHorizontal, Zap, User,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -44,15 +44,16 @@ interface SearchIndex {
   correspondents: string[];
   tags: string[];
   documentTypes: string[];
+  users: any[];
   loaded: boolean;
 }
 
-let _index: SearchIndex = { documents: [], correspondents: [], tags: [], documentTypes: [], loaded: false };
+let _index: SearchIndex = { documents: [], correspondents: [], tags: [], documentTypes: [], users: [], loaded: false };
 let _loadPromise: Promise<void> | null = null;
 
-// ─── Public: call this after any document/tag/correspondent save ──────────────
+// ─── Public: call this after any document/tag/correspondent/user save ──────────────
 export function invalidateSearchIndex() {
-  _index = { documents: [], correspondents: [], tags: [], documentTypes: [], loaded: false };
+  _index = { documents: [], correspondents: [], tags: [], documentTypes: [], users: [], loaded: false };
   _loadPromise = null;
 }
 
@@ -135,11 +136,29 @@ async function loadIndex(): Promise<void> {
       local.forEach(t => t.name && typeSet.add(t.name));
     } catch {}
 
+    // ── Users ──
+    const users: any[] = [];
+    try {
+      const snap = await getDocs(collection(db, 'users'));
+      snap.forEach(d => {
+        const data = d.data();
+        users.push({
+          uid: d.id,
+          name: data.name || '',
+          email: data.email || '',
+          employeeId: data.employeeId || '',
+          department: data.department || '',
+          role: data.role || '',
+        });
+      });
+    } catch { /* empty */ }
+
     _index = {
       documents: docs,
       correspondents: Array.from(corrSet).filter(Boolean),
       tags: Array.from(tagSet).filter(Boolean),
       documentTypes: Array.from(typeSet).filter(Boolean),
+      users: users,
       loaded: true,
     };
   })();
@@ -197,59 +216,108 @@ function runSearch(query: string): SearchResult[] {
   const q = query.trim();
   if (q.length < 1) return [];
   const results: SearchResult[] = [];
+  const qTerms = q.toLowerCase().split(/\s+/).filter(Boolean);
 
   // ── Documents ──
   for (const doc of _index.documents) {
-    let best = 0;
-    let snippet: string | undefined;
+    if (qTerms.length === 0) continue;
 
-    // Search BOTH name and originalName independently (not short-circuit)
-    best = Math.max(best, scoreStr(doc.name, q) * 1.2);
-    best = Math.max(best, scoreStr(doc.originalName, q) * 1.1);
-
-    // Correspondent / Client
-    best = Math.max(best, scoreStr(doc.client, q));
-    best = Math.max(best, scoreStr(doc.dept, q) * 0.8);
-
-    // Category / type
-    best = Math.max(best, scoreStr(doc.category, q) * 0.8);
-
-    // Description / notes
-    best = Math.max(best, scoreStr(doc.description, q) * 0.9);
-    best = Math.max(best, scoreStr(doc.notes, q) * 0.9);
-
-    // Date
-    best = Math.max(best, scoreStr(doc.date, q) * 0.6);
-
-    // Tags — handle both string[] and object[] formats
     const rawTags: unknown[] = Array.isArray(doc.tags) ? doc.tags : [];
     const normalizedTags = rawTags.map(tagName).filter(Boolean);
-    best = Math.max(best, bestScore(normalizedTags, q) * 1.0);
-
-    // Products
     const prods: unknown[] = Array.isArray(doc.products) ? doc.products : [];
-    best = Math.max(best, bestScore(prods, q) * 0.8);
 
-    // OCR / full text (most powerful — invoice#, BIN, phone numbers etc.)
-    const ocrText: string = String(doc.text || doc.ocrText || doc.ocrContent || doc.content || '');
-    if (ocrText) {
-      const ocrScore = scoreStr(ocrText, q);
-      if (ocrScore > 0) {
-        best = Math.max(best, ocrScore * 1.1);
-        snippet = makeSnippet(ocrText, q);
+    // Fields to search
+    const metadataFields = [
+      doc.name,
+      doc.originalName,
+      doc.client,
+      doc.dept,
+      doc.category,
+      doc.notes,
+      doc.date,
+      doc.uploadedBy,
+      doc.uploadedByName,
+      ...normalizedTags,
+      ...prods,
+    ].filter(Boolean).map(s => String(s).toLowerCase());
+
+    const ocrText = String(doc.text || doc.ocrText || doc.ocrContent || doc.content || '').toLowerCase();
+
+    // Verify that every search term matches at least one metadata field OR the OCR text
+    const allTermsMatch = qTerms.every(term => {
+      return metadataFields.some(field => field.includes(term)) || ocrText.includes(term);
+    });
+
+    if (allTermsMatch) {
+      // Base score for matching all terms
+      let score = 50;
+
+      // Add extra points for exact/prefix/partial matches on main fields
+      const fullDocName = String(doc.name || '').toLowerCase();
+      const fullClient = String(doc.client || '').toLowerCase();
+      const qLower = q.toLowerCase();
+
+      if (fullDocName === qLower) score += 50;
+      else if (fullDocName.startsWith(qLower)) score += 40;
+      else if (fullDocName.includes(qLower)) score += 30;
+      else if (fullClient === qLower) score += 20;
+      else if (fullClient.includes(qLower)) score += 10;
+
+      // Tags and products match bonus
+      if (normalizedTags.some(t => t === qLower || qTerms.includes(t))) score += 15;
+      if (prods.some(p => String(p).toLowerCase() === qLower || qTerms.includes(String(p).toLowerCase()))) score += 10;
+
+      score = Math.min(score, 100);
+
+      // Extract snippet from OCR text if any search term matched OCR content
+      let snippet: string | undefined;
+      if (ocrText) {
+        const matchedOcrTerm = qTerms.find(term => ocrText.includes(term));
+        if (matchedOcrTerm) {
+          snippet = makeSnippet(doc.text || doc.ocrText || doc.ocrContent || doc.content || '', matchedOcrTerm);
+        }
       }
-    }
 
-    if (best > 0) {
       results.push({
         id: doc.id,
         kind: 'document',
         title: doc.name || doc.originalName || 'Untitled',
         subtitle: [doc.client, doc.category].filter(Boolean).join(' · ') || doc.dept || '',
         meta: doc.date || '',
-        score: Math.round(best),
+        score: score,
         ocrSnippet: snippet,
         route: `/documents/${doc.id}`,
+      });
+    }
+  }
+
+  // ── Users ──
+  for (const u of _index.users) {
+    if (qTerms.length === 0) continue;
+
+    const allTermsMatch = qTerms.every(term => {
+      return (
+        u.name.toLowerCase().includes(term) ||
+        u.email.toLowerCase().includes(term) ||
+        u.employeeId.toLowerCase().includes(term) ||
+        u.department.toLowerCase().includes(term)
+      );
+    });
+
+    if (allTermsMatch) {
+      let score = 40;
+      const qLower = q.toLowerCase();
+      if (u.name.toLowerCase() === qLower || u.email.toLowerCase() === qLower) score += 40;
+      else if (u.name.toLowerCase().includes(qLower) || u.email.toLowerCase().includes(qLower)) score += 25;
+
+      results.push({
+        id: `u_${u.uid}`,
+        kind: 'user',
+        title: u.name || u.email,
+        subtitle: `User · ${u.department || 'No Department'} (${u.employeeId || 'No Emp ID'})`,
+        meta: u.role || 'employee',
+        score: Math.min(score, 100),
+        route: `/documents?uploadedBy=${encodeURIComponent(u.email)}`,
       });
     }
   }
@@ -257,19 +325,19 @@ function runSearch(query: string): SearchResult[] {
   // ── Correspondents ──
   for (const name of _index.correspondents) {
     const s = scoreStr(name, q);
-    if (s > 0) results.push({ id: `c_${name}`, kind: 'correspondent', title: name, subtitle: 'Correspondent', score: Math.round(s * 0.8), route: '/correspondents' });
+    if (s > 0) results.push({ id: `c_${name}`, kind: 'correspondent', title: name, subtitle: 'Correspondent', score: Math.round(s * 0.8), route: `/documents?client=${encodeURIComponent(name)}` });
   }
 
   // ── Tags ──
   for (const name of _index.tags) {
     const s = scoreStr(name, q);
-    if (s > 0) results.push({ id: `t_${name}`, kind: 'tag', title: `#${name}`, subtitle: 'Tag', score: Math.round(s * 0.75), route: '/tags' });
+    if (s > 0) results.push({ id: `t_${name}`, kind: 'tag', title: `#${name}`, subtitle: 'Tag', score: Math.round(s * 0.75), route: `/documents?tag=${encodeURIComponent(name)}` });
   }
 
   // ── Document types ──
   for (const name of _index.documentTypes) {
     const s = scoreStr(name, q);
-    if (s > 0) results.push({ id: `dt_${name}`, kind: 'document-type', title: name, subtitle: 'Document Type', score: Math.round(s * 0.7), route: '/document-types' });
+    if (s > 0) results.push({ id: `dt_${name}`, kind: 'document-type', title: name, subtitle: 'Document Type', score: Math.round(s * 0.7), route: `/documents?category=${encodeURIComponent(name)}` });
   }
 
   // ── Pages ──
@@ -290,6 +358,7 @@ function KindIcon({ kind, size = 14 }: { kind: SearchResultKind; size?: number }
     case 'document-type':  return <Folder size={size} className="text-violet-400 shrink-0" />;
     case 'storage-path':   return <HardDrive size={size} className="text-cyan-400 shrink-0" />;
     case 'custom-field':   return <SlidersHorizontal size={size} className="text-yellow-400 shrink-0" />;
+    case 'user':           return <User size={size} className="text-pink-400 shrink-0" />;
     case 'page':           return <Zap size={size} className="text-muted-foreground shrink-0" />;
     default:               return <Search size={size} className="shrink-0" />;
   }
@@ -375,7 +444,7 @@ function SearchOverlay({ onClose }: { onClose: () => void }) {
   };
 
   // Group results by kind
-  const ORDER: SearchResultKind[] = ['document', 'correspondent', 'tag', 'document-type', 'page'];
+  const ORDER: SearchResultKind[] = ['document', 'user', 'correspondent', 'tag', 'document-type', 'page'];
   const grouped = ORDER.reduce<{ kind: SearchResultKind; items: SearchResult[] }[]>((acc, k) => {
     const items = results.filter(r => r.kind === k);
     if (items.length) acc.push({ kind: k, items });
@@ -385,7 +454,7 @@ function SearchOverlay({ onClose }: { onClose: () => void }) {
   const recent = getRecent();
 
   const GROUP_LABELS: Record<string, string> = {
-    document: 'Documents', correspondent: 'Correspondents',
+    document: 'Documents', user: 'Users', correspondent: 'Correspondents',
     tag: 'Tags', 'document-type': 'Document Types', page: 'Navigation',
   };
 

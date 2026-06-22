@@ -5,6 +5,7 @@ import { db } from '@/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 import DocCard from '@/components/DocCard';
 import { toast } from 'sonner';
+import { parseSizeMb } from '@/lib/utils';
 import {
   Tag, User, FileType, HardDrive, Calendar, Shield,
   X, LayoutGrid, List, SlidersHorizontal, ChevronDown,
@@ -162,7 +163,35 @@ export default function DocumentsList() {
   const [filterDept, setFilterDept] = useState('');
   const [filterDate, setFilterDate] = useState('');
   const [filterPerm, setFilterPerm] = useState<PermFilter>('all');
+  const [filterUploadedBy, setFilterUploadedBy] = useState('');
   const [searchText, setSearchText] = useState(searchParams.get('q') || '');
+
+  const tagName = (t: unknown): string => {
+    if (!t) return '';
+    if (typeof t === 'string') return t.trim().toLowerCase();
+    if (typeof t === 'object' && t !== null && 'name' in t) return String((t as any).name).trim().toLowerCase();
+    return String(t).trim().toLowerCase();
+  };
+
+  useEffect(() => {
+    const qParam = searchParams.get('q');
+    if (qParam !== null) setSearchText(qParam);
+
+    const tagParam = searchParams.get('tag');
+    if (tagParam !== null) setFilterTag(tagParam);
+
+    const clientParam = searchParams.get('client');
+    if (clientParam !== null) setFilterClient(clientParam);
+
+    const catParam = searchParams.get('category');
+    if (catParam !== null) setFilterCategory(catParam);
+
+    const deptParam = searchParams.get('dept');
+    if (deptParam !== null) setFilterDept(deptParam);
+
+    const uploadedByParam = searchParams.get('uploadedBy');
+    if (uploadedByParam !== null) setFilterUploadedBy(uploadedByParam);
+  }, [searchParams]);
 
   // ── Load documents ──
   const loadDocs = useCallback(async () => {
@@ -200,14 +229,34 @@ export default function DocumentsList() {
   // ── Filter & sort ──
   const uid = currentUser?.uid || '';
   const filtered = docs.filter(d => {
-    if (searchText && !d.name.toLowerCase().includes(searchText.toLowerCase()) &&
-      !d.text?.toLowerCase().includes(searchText.toLowerCase()) &&
-      !d.client?.toLowerCase().includes(searchText.toLowerCase())) return false;
+    if (searchText) {
+      const q = searchText.toLowerCase().trim();
+      const terms = q.split(/\s+/).filter(Boolean);
+      if (terms.length > 0) {
+        const isMatched = terms.every(term => {
+          return (
+            d.name.toLowerCase().includes(term) ||
+            d.originalName?.toLowerCase().includes(term) ||
+            d.text?.toLowerCase().includes(term) ||
+            d.client?.toLowerCase().includes(term) ||
+            d.category?.toLowerCase().includes(term) ||
+            d.dept?.toLowerCase().includes(term) ||
+            d.notes?.toLowerCase().includes(term) ||
+            d.uploadedBy?.toLowerCase().includes(term) ||
+            d.uploadedByName?.toLowerCase().includes(term) ||
+            (d.tags || []).some(t => tagName(t).includes(term)) ||
+            (d.products || []).some(p => String(p).toLowerCase().includes(term))
+          );
+        });
+        if (!isMatched) return false;
+      }
+    }
     if (filterTag && !(d.tags || []).includes(filterTag)) return false;
     if (filterClient && d.client?.toLowerCase() !== filterClient.toLowerCase()) return false;
     if (filterCategory && d.category !== filterCategory) return false;
     if (filterDept && d.dept !== filterDept) return false;
     if (filterDate && d.date !== filterDate && d.createdAt?.slice(0, 10) !== filterDate) return false;
+    if (filterUploadedBy && d.uploadedBy?.toLowerCase() !== filterUploadedBy.toLowerCase()) return false;
     if (filterPerm === 'mine' && d.ownerId !== uid) return false;
     if (filterPerm === 'unowned' && d.ownerId) return false;
     if (filterPerm === 'shared-with-me' && !(d.permissions && d.permissions[uid] && d.ownerId !== uid)) return false;
@@ -219,14 +268,18 @@ export default function DocumentsList() {
     let cmp = 0;
     if (sortBy === 'name') cmp = a.name.localeCompare(b.name);
     else if (sortBy === 'date') cmp = (a.date || '').localeCompare(b.date || '');
-    else cmp = (a.createdAt || '').localeCompare(b.createdAt || '');
+    else if (sortBy === 'size') {
+      const sizeA = a.sizeBytesRaw || (a.size ? parseSizeMb(a.size) * 1024 * 1024 : 0);
+      const sizeB = b.sizeBytesRaw || (b.size ? parseSizeMb(b.size) * 1024 * 1024 : 0);
+      cmp = sizeA - sizeB;
+    } else cmp = (a.createdAt || '').localeCompare(b.createdAt || '');
     return sortAsc ? cmp : -cmp;
   });
 
   const totalPages = Math.ceil(sorted.length / ITEMS_PER_PAGE);
   const paginated = sorted.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
-  const hasFilters = filterTag || filterClient || filterCategory || filterDept || filterDate || filterPerm !== 'all' || searchText;
+  const hasFilters = filterTag || filterClient || filterCategory || filterDept || filterDate || filterPerm !== 'all' || searchText || filterUploadedBy;
   const allTags = [...new Set(docs.flatMap(d => d.tags || []))].filter((x): x is string => Boolean(x));
   const allClients = [...new Set(docs.map(d => d.client).filter((x): x is string => Boolean(x)))];
   const allCategories = [...new Set(docs.map(d => d.category).filter((x): x is string => Boolean(x)))];
@@ -250,6 +303,8 @@ export default function DocumentsList() {
   const clearFilters = () => {
     setFilterTag(''); setFilterClient(''); setFilterCategory('');
     setFilterDept(''); setFilterDate(''); setFilterPerm('all'); setSearchText('');
+    setFilterUploadedBy('');
+    setSearchParams({});
   };
 
   if (loading) {
@@ -285,10 +340,23 @@ export default function DocumentsList() {
             <button className="flex items-center gap-1.5 px-3 py-1.5 border border-border rounded text-xs text-muted-foreground hover:bg-muted/50 transition-colors">
               <BarChart3 size={12} /> Show
             </button>
-            <div className="relative group">
-              <button className="flex items-center gap-1.5 px-3 py-1.5 border border-border rounded text-xs text-muted-foreground hover:bg-muted/50 transition-colors">
-                <SlidersHorizontal size={12} />
-                Sort {sortAsc ? '↑' : '↓'}
+            <div className="relative group flex items-center border border-border rounded overflow-hidden">
+              <select
+                value={sortBy}
+                onChange={e => setSortBy(e.target.value as SortBy)}
+                className="bg-transparent text-xs text-muted-foreground px-2 py-1 focus:outline-none border-r border-border cursor-pointer hover:bg-muted/30"
+              >
+                <option value="created">Date Uploaded</option>
+                <option value="date">Document Date</option>
+                <option value="name">Name</option>
+                <option value="size">Size</option>
+              </select>
+              <button
+                onClick={() => setSortAsc(a => !a)}
+                title={sortAsc ? "Sort Ascending" : "Sort Descending"}
+                className="p-1.5 text-muted-foreground hover:bg-muted/50 transition-colors"
+              >
+                <SlidersHorizontal size={12} className={sortAsc ? "rotate-180 transition-transform" : "transition-transform"} />
               </button>
             </div>
             <div className="flex items-center border border-border rounded overflow-hidden">

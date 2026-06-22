@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { FileText, Users, HardDrive, Upload, Clock, ArrowRight, Plus, TrendingUp } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
+import { parseSizeMb, formatStorage } from '@/lib/utils';
 
 interface Stats {
   docCount: number;
@@ -32,21 +33,7 @@ const CONFIDENTIALITY_COLORS: Record<string, string> = {
   Restricted: 'text-red-400 bg-red-400/10',
 };
 
-function parseSizeMb(sizeStr: string): number {
-  if (!sizeStr) return 0;
-  const val = parseFloat(sizeStr);
-  if (isNaN(val)) return 0;
-  if (sizeStr.includes('GB')) return val * 1024;
-  if (sizeStr.includes('MB')) return val;
-  if (sizeStr.includes('KB')) return val / 1024;
-  return val / (1024 * 1024);
-}
-
-function formatStorage(mb: number): string {
-  if (mb >= 1024) return `${(mb / 1024).toFixed(1)} GB`;
-  if (mb >= 1) return `${mb.toFixed(0)} MB`;
-  return `${(mb * 1024).toFixed(0)} KB`;
-}
+// parseSizeMb and formatStorage are imported from @/lib/utils
 
 export default function Dashboard() {
   const { currentUser, userProfile } = useAuth();
@@ -98,11 +85,21 @@ export default function Dashboard() {
 
       for (const d of allDocs) {
         // Storage: prefer exact bytes, fall back to parsed formatted string
-        if (typeof d.sizeBytesRaw === 'number' && d.sizeBytesRaw > 0) {
-          totalBytes += d.sizeBytesRaw;
-        } else if (d.size) {
-          totalBytes += parseSizeMb(d.size) * 1024 * 1024;
+        let docBytes = 0;
+        if (d.sizeBytesRaw !== undefined && d.sizeBytesRaw !== null) {
+          const rawVal = Number(d.sizeBytesRaw);
+          if (!isNaN(rawVal) && rawVal > 0) {
+            docBytes = rawVal;
+          }
         }
+        if (docBytes === 0 && d.size) {
+          docBytes = parseSizeMb(d.size) * 1024 * 1024;
+        }
+        if (docBytes === 0 && !d.isDeleted) {
+          const textLength = String(d.text || '').length;
+          docBytes = textLength > 0 ? Math.max(textLength, 1024) : 1024;
+        }
+        totalBytes += docBytes;
 
         // Tags — handle both string[] and {name, color}[] formats
         if (Array.isArray(d.tags)) {
