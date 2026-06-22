@@ -1,6 +1,6 @@
 {
   "hosting": {
-    "site": "dg-proposal-repo",
+    "site": "dg-repo-sohan",
     "public": "dist",
     "ignore": [
       "firebase.json",

@@ -1,20 +1,92 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# DG Repo — Corporate Document Management System
 
-# Run and deploy your AI Studio app
+A Paperless-ngx inspired document management system built for corporate use.
 
-This contains everything you need to run your app locally.
+## 🌐 Live URLs
 
-View your app in AI Studio: https://ai.studio/apps/1483d209-c159-4a38-be11-b4f9991f7ef1
+| Platform | URL |
+|----------|-----|
+| **Vercel (Primary)** | https://dg-repo.vercel.app |
+| **Firebase Hosting** | https://dg-repo-sohan.web.app |
 
-## Run Locally
+## ✨ Features
 
-**Prerequisites:**  Node.js
+- 📄 **Document Upload** with OCR text extraction
+- 🔍 **Full-text Search** — search by invoice number, BIN, tags, OCR content
+- 🏷️ **Flexible Tagging** — auto-tag + manual tags with color coding
+- 📊 **Dashboard** with real-time storage stats
+- 🔒 **Firebase Auth** — Google Sign-In + Email/Password
+- ☁️ **Firebase Storage** — resumable uploads with progress bar
+- 🗂️ **Document Types, Correspondents, Tags, Custom Fields**
+- 🌑 **Dark mode** UI inspired by Paperless-ngx
 
+## 🚀 Getting Started
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+### Prerequisites
+- Node.js 18+
+- A Firebase project
+
+### Local Development
+
+```bash
+# Clone
+git clone https://github.com/bluesun-gif/dg-repo.git
+cd dg-repo
+
+# Install
+npm install
+
+# Set up environment (copy and fill in your values)
+cp .env.example .env
+
+# Run locally
+npm run dev
+```
+
+### Environment Variables
+
+Copy `.env.example` to `.env` and fill in your Firebase project config:
+
+```env
+VITE_FIREBASE_API_KEY=...
+VITE_FIREBASE_AUTH_DOMAIN=...
+VITE_FIREBASE_PROJECT_ID=...
+VITE_FIREBASE_STORAGE_BUCKET=...
+VITE_FIREBASE_MESSAGING_SENDER_ID=...
+VITE_FIREBASE_APP_ID=...
+VITE_GEMINI_API_KEY=...
+```
+
+### Deploy to Vercel
+
+```bash
+npm install -g vercel
+vercel deploy --prod
+```
+
+## 🏗️ Tech Stack
+
+- **Frontend**: React 18 + TypeScript + Vite
+- **Styling**: Tailwind CSS + shadcn/ui
+- **Auth**: Firebase Authentication
+- **Database**: Cloud Firestore
+- **Storage**: Firebase Storage (resumable uploads)
+- **Hosting**: Vercel + Firebase Hosting
+- **OCR**: PDF.js + Tesseract.js
+
+## 📁 Project Structure
+
+```
+src/
+├── components/      # Shared UI components (GlobalSearch, DocCard, etc.)
+├── contexts/        # Auth context
+├── layouts/         # Root layout with sidebar nav
+├── lib/             # Utilities (fileParser, gemini, utils)
+├── pages/           # All page components
+│   ├── Dashboard.tsx
+│   ├── Upload.tsx
+│   ├── DocumentsList.tsx
+│   ├── DocumentDetail.tsx
+│   └── ...
+└── firebase.ts      # Firebase config
+```

@@ -39,3 +39,5 @@ src-upload.zip
 src_old/
 dg-media/
 *.local
+
+.vercel

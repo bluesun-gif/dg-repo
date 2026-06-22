@@ -12,12 +12,12 @@ import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
-  apiKey:            import.meta.env.VITE_FIREBASE_API_KEY            || "AIzaSyDc8crbfdGgHeHADJnFJhr31cDzuzn4lqs",
-  authDomain:        import.meta.env.VITE_FIREBASE_AUTH_DOMAIN        || "dg-proposal-repo.firebaseapp.com",
-  projectId:         import.meta.env.VITE_FIREBASE_PROJECT_ID         || "dg-proposal-repo",
-  storageBucket:     import.meta.env.VITE_FIREBASE_STORAGE_BUCKET     || "dg-proposal-repo.firebasestorage.app",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID|| "297510987832",
-  appId:             import.meta.env.VITE_FIREBASE_APP_ID             || "1:297510987832:web:e7e3772d41eed681bddecd",
+  apiKey:            import.meta.env.VITE_FIREBASE_API_KEY            || "AIzaSyC0jDKdgmCCqWVa2peEDpblyQEWvRYYBeA",
+  authDomain:        import.meta.env.VITE_FIREBASE_AUTH_DOMAIN        || "dg-repo-sohan.firebaseapp.com",
+  projectId:         import.meta.env.VITE_FIREBASE_PROJECT_ID         || "dg-repo-sohan",
+  storageBucket:     import.meta.env.VITE_FIREBASE_STORAGE_BUCKET     || "dg-repo-sohan.firebasestorage.app",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID|| "272250394119",
+  appId:             import.meta.env.VITE_FIREBASE_APP_ID             || "1:272250394119:web:085aee47f6d0aa15bffca2",
 };
 
 const app = initializeApp(firebaseConfig);
