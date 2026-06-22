@@ -1,0 +1,173 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/geist";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-sans: 'Geist Variable', sans-serif;
+  --font-heading: var(--font-sans);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+}
+
+/* ─── Paperless-NGX Inspired Dark Theme ─── */
+:root {
+  --background: #111827;
+  --foreground: #f9fafb;
+  --card: #1f2937;
+  --card-foreground: #f9fafb;
+  --popover: #1f2937;
+  --popover-foreground: #f9fafb;
+  /* Emerald green — Paperless signature color */
+  --primary: #10b981;
+  --primary-foreground: #ffffff;
+  --secondary: #1f2937;
+  --secondary-foreground: #f9fafb;
+  --muted: #374151;
+  --muted-foreground: #9ca3af;
+  --accent: #064e3b;
+  --accent-foreground: #6ee7b7;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --border: #374151;
+  --input: #374151;
+  --ring: #10b981;
+  --radius: 0.5rem;
+  --sidebar-bg: #0f172a;
+  --sidebar-border: #1e293b;
+  --sidebar-hover: #1e293b;
+  --sidebar-active-bg: #064e3b;
+  --sidebar-active-text: #10b981;
+}
+
+.dark {
+  --background: #111827;
+  --foreground: #f9fafb;
+  --card: #1f2937;
+  --card-foreground: #f9fafb;
+  --popover: #1f2937;
+  --popover-foreground: #f9fafb;
+  --primary: #10b981;
+  --primary-foreground: #ffffff;
+  --secondary: #1f2937;
+  --secondary-foreground: #f9fafb;
+  --muted: #374151;
+  --muted-foreground: #9ca3af;
+  --accent: #064e3b;
+  --accent-foreground: #6ee7b7;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --border: #374151;
+  --input: #374151;
+  --ring: #10b981;
+}
+
+@layer base {
+  body {
+    @apply antialiased bg-background text-foreground;
+  }
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans;
+  }
+}
+
+/* ─── Sidebar ─── */
+.plex-sidebar {
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--sidebar-border);
+}
+
+.plex-nav-item {
+  @apply flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-all duration-150 cursor-pointer select-none;
+  color: #94a3b8;
+}
+.plex-nav-item:hover {
+  background: var(--sidebar-hover);
+  color: #e2e8f0;
+}
+.plex-nav-item.active {
+  background: var(--sidebar-active-bg);
+  color: var(--sidebar-active-text);
+}
+
+/* ─── Document Cards ─── */
+.doc-card {
+  @apply bg-card border border-border rounded-lg overflow-hidden transition-all duration-150;
+}
+.doc-card:hover {
+  border-color: #10b981;
+  box-shadow: 0 0 0 1px #10b981;
+}
+.doc-card.selected {
+  border-color: #10b981;
+  background: #064e3b20;
+}
+
+/* ─── Tag Pills ─── */
+.tag-pill {
+  @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border;
+}
+
+/* ─── Status Processing Steps ─── */
+.step-idle   { @apply text-muted-foreground; }
+.step-active { @apply text-primary animate-pulse; }
+.step-done   { @apply text-emerald-400; }
+.step-error  { @apply text-destructive; }
+
+/* ─── Glassmorphism (keep for modals) ─── */
+.glass {
+  background: rgba(31, 41, 55, 0.6);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+.glass-panel {
+  background: linear-gradient(145deg, rgba(31, 41, 55, 0.8) 0%, rgba(17, 24, 39, 0.6) 100%);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+/* ─── Scrollbar ─── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #4b5563; }
+
+/* ─── Empty State ─── */
+.empty-state {
+  @apply flex flex-col items-center justify-center text-center py-16 px-8;
+}
+
+/* ─── Thumbnail placeholder ─── */
+.doc-thumb {
+  @apply w-full aspect-[3/4] bg-muted flex items-center justify-center rounded overflow-hidden;
+}

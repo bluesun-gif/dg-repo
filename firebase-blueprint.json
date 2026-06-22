@@ -1,0 +1,61 @@
+{
+  "entities": {
+    "Proposal": {
+      "title": "Proposal",
+      "description": "A business proposal submitted to the repository.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "refNum": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "submitterName": { "type": "string" },
+        "submitterDesignation": { "type": "string" },
+        "submitterContact": { "type": "string" },
+        "clientName": { "type": "string" },
+        "clientDesignation": { "type": "string" },
+        "clientOrganization": { "type": "string" },
+        "clientPhone": { "type": "string" },
+        "clientEmail": { "type": "string" },
+        "productSelection": { "type": "string" },
+        "customProduct": { "type": "string" },
+        "financialOfferDetails": { "type": "string" },
+        "fileName": { "type": "string" },
+        "fileData": { "type": "string", "description": "Base64 encoded file data" },
+        "authorUid": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "refNum", "submitterName", "clientName", "clientOrganization", "productSelection", "authorUid"]
+    },
+    "CompanyAsset": {
+      "title": "Company Asset",
+      "description": "A shared company asset like a logo or profile.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "type": { "type": "string", "enum": ["Logo", "Banner", "Profile", "Other"] },
+        "fileName": { "type": "string" },
+        "fileData": { "type": "string" },
+        "uploadedBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "type", "fileName", "fileData", "uploadedBy"]
+    },
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Extended user profile information.",
+      "type": "object",
+      "properties": {
+        "displayName": { "type": "string" },
+        "designation": { "type": "string" },
+        "contact": { "type": "string" },
+        "department": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    }
+  },
+  "firestore": {
+    "/proposals/{proposalId}": { "schema": "Proposal", "description": "Proposals collection" },
+    "/company_assets/{assetId}": { "schema": "CompanyAsset", "description": "Company assets collection" },
+    "/users/{userId}": { "schema": "UserProfile", "description": "User profiles collection" }
+  }
+}

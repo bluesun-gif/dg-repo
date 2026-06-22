@@ -1,0 +1,99 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helpers ───────────────────────────────────────────────────────────
+    function isAuth()  { return request.auth != null; }
+    function isAdmin() {
+      return isAuth() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    function isOwner(uid) { return isAuth() && request.auth.uid == uid; }
+
+    // ── documents ─────────────────────────────────────────────────────────
+    match /documents/{docId} {
+      allow read:   if isAuth();
+      allow create: if isAuth() && request.resource.data.ownerId == request.auth.uid;
+      allow update: if isAuth() && (
+                       resource.data.ownerId == request.auth.uid || isAdmin()
+                    );
+      allow delete: if isAuth() && (
+                       resource.data.ownerId == request.auth.uid || isAdmin()
+                    );
+    }
+
+    // ── correspondents ────────────────────────────────────────────────────
+    match /correspondents/{id} {
+      allow read:  if isAuth();
+      allow write: if isAuth();
+    }
+
+    // ── tags ──────────────────────────────────────────────────────────────
+    match /tags/{id} {
+      allow read:  if isAuth();
+      allow write: if isAuth();
+    }
+
+    // ── documentTypes ─────────────────────────────────────────────────────
+    match /documentTypes/{id} {
+      allow read:  if isAuth();
+      allow write: if isAuth();
+    }
+
+    // ── storagePaths ──────────────────────────────────────────────────────
+    match /storagePaths/{id} {
+      allow read:  if isAuth();
+      allow write: if isAuth();
+    }
+
+    // ── customFields ──────────────────────────────────────────────────────
+    match /customFields/{id} {
+      allow read:  if isAuth();
+      allow write: if isAuth();
+    }
+
+    // ── workflows ─────────────────────────────────────────────────────────
+    match /workflows/{id} {
+      allow read:  if isAuth();
+      allow write: if isAuth();
+    }
+
+    // ── users ─────────────────────────────────────────────────────────────
+    match /users/{userId} {
+      allow read:  if isAuth();
+      allow write: if isOwner(userId) || isAdmin();
+    }
+
+    // ── proposals (legacy) ────────────────────────────────────────────────
+    match /proposals/{proposalId} {
+      allow read: if isAuth();
+      allow create: if isAuth() &&
+                       request.resource.data.createdBy == request.auth.uid;
+      allow update: if isAuth() && (
+                       isOwner(resource.data.createdBy) || isAdmin()
+                    );
+      allow delete: if isAuth() && (
+                       isOwner(resource.data.createdBy) || isAdmin()
+                    );
+    }
+    match /proposals/{proposalId}/chunks/{chunkId} {
+      allow read, write: if isAuth();
+    }
+
+    // ── company_assets (legacy) ───────────────────────────────────────────
+    match /company_assets/{assetId} {
+      allow read: if isAuth();
+      allow create: if isAuth() &&
+                       request.resource.data.uploadedBy == request.auth.uid;
+      allow update: if isAuth() && (
+                       isOwner(resource.data.uploadedBy) || isAdmin()
+                    );
+      allow delete: if isAuth() && (
+                       isOwner(resource.data.uploadedBy) || isAdmin()
+                    );
+    }
+    match /company_assets/{assetId}/chunks/{chunkId} {
+      allow read, write: if isAuth();
+    }
+  }
+}
